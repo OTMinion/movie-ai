@@ -12,10 +12,21 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Add proper error handling
   logging: {
     fetches: {
       fullUrl: true,
+    },
+  },
+  // Add these for better error handling
+  onError: (err) => {
+    console.error("Next.js build error:", err);
+  },
+  experimental: {
+    // Enable React strict mode
+    reactStrictMode: true,
+    // Improve error handling
+    serverActions: {
+      bodySizeLimit: "2mb",
     },
   },
 };

@@ -1,36 +1,38 @@
 // actions/semanticSeachAction.ts
 "use server";
-import PostModel from "@/models/postModel";
+import PostModel, { IPostLean } from "@/models/postModel";
 import connectDB from "@/config/database";
 import { generateEmbedding } from "@/utils/embedding";
 import mongoose from "mongoose";
 
-export interface IShow {
-  _id: string;
-  name: string;
-  original_name: string;
-  poster_path: string;
-  overview: string;
-  first_air_date: string;
-  vote_average: number;
-}
-
-export interface ISimilarShow extends IShow {
+export interface ISimilarShow extends IPostLean {
   similarity: number;
 }
 
 export interface SearchResponse {
   data?: ISimilarShow[];
-  error?: any;
+  error?: string;
 }
 
-// Sanitize text to prevent XSS and invalid HTML
-function sanitizeText(text: string): string {
-  return String(text || "")
-    .replace(/[<>]/g, "") // Remove potential HTML tags
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+function sanitizeShow(post: any): ISimilarShow {
+  return {
+    _id: String(post._id || ""),
+    adult: Boolean(post.adult),
+    backdrop_path: String(post.backdrop_path || ""),
+    genre_ids: Array.isArray(post.genre_ids) ? post.genre_ids : [],
+    id: Number(post.id || 0),
+    origin_country: Array.isArray(post.origin_country) ? post.origin_country : [],
+    original_language: String(post.original_language || ""),
+    original_name: String(post.original_name || ""),
+    overview: String(post.overview || ""),
+    popularity: Number(post.popularity || 0),
+    poster_path: String(post.poster_path || ""),
+    first_air_date: String(post.first_air_date || ""),
+    name: String(post.name || ""),
+    vote_average: Number(post.vote_average || 0),
+    vote_count: Number(post.vote_count || 0),
+    similarity: Number(post.similarity || 0),
+  };
 }
 
 export async function getSemanticallySimilarPosts(
@@ -65,32 +67,30 @@ export async function getSemanticallySimilarPosts(
       },
       {
         $project: {
-          name: 1,
+          _id: 1,
+          adult: 1,
+          backdrop_path: 1,
+          genre_ids: 1,
+          id: 1,
+          origin_country: 1,
+          original_language: 1,
           original_name: 1,
-          poster_path: 1,
           overview: 1,
+          popularity: 1,
+          poster_path: 1,
           first_air_date: 1,
+          name: 1,
           vote_average: 1,
+          vote_count: 1,
           similarity: 1,
         },
       },
     ]);
 
-    // Transform and sanitize the data
-    const typedSimilarPosts: ISimilarShow[] = similarPosts.map((post) => ({
-      _id: post._id.toString(),
-      name: sanitizeText(post.name),
-      original_name: sanitizeText(post.original_name),
-      poster_path: String(post.poster_path || ""),
-      overview: sanitizeText(post.overview),
-      first_air_date: String(post.first_air_date || ""),
-      vote_average: Number(post.vote_average || 0),
-      similarity: Number(post.similarity || 0),
-    }));
-
-    return { data: typedSimilarPosts };
+    const sanitizedPosts = similarPosts.map(sanitizeShow);
+    return { data: sanitizedPosts };
   } catch (error) {
     console.error("Error in semantic search:", error);
-    return { error };
+    return { error: "Failed to fetch similar shows" };
   }
 }
