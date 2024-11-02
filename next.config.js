@@ -10,8 +10,13 @@ const nextConfig = {
     ],
   },
   typescript: {
-    // During development you can disable this
     ignoreBuildErrors: true,
+  },
+  // Add proper error handling
+  logging: {
+    fetches: {
+      fullUrl: true,
+    },
   },
 };
 
