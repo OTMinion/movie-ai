@@ -1,20 +1,25 @@
 // app/shows/[id]/page.tsx
-import type { Metadata } from "next";
 import { getSemanticallySimilarPosts } from "@/actions/semanticSeachAction";
 import PostModel from "@/models/postModel";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
 
-type PageParams = { id: string };
+type SearchParams = { [key: string]: string | string[] | undefined };
 
-export async function generateMetadata({ params }: { params: PageParams }): Promise<Metadata> {
-  const show = await PostModel.findById(params.id).lean();
+async function getShow(id: string) {
+  const show = await PostModel.findById(id).lean();
+  if (!show) notFound();
+  return show;
+}
 
-  if (!show) {
-    return {
-      title: "Show Not Found",
-    };
-  }
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+  searchParams: SearchParams;
+}): Promise<Metadata> {
+  const show = await getShow(params.id);
 
   return {
     title: show.name,
@@ -22,14 +27,14 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   };
 }
 
-// Define the page component
-export default async function ShowPage({ params }: { params: PageParams }) {
-  const show = await PostModel.findById(params.id).lean();
-
-  if (!show) {
-    notFound();
-  }
-
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: SearchParams;
+}) {
+  const show = await getShow(params.id);
   const { data: similarPosts, error } = await getSemanticallySimilarPosts(show.overview, params.id);
 
   return (
@@ -106,4 +111,15 @@ export default async function ShowPage({ params }: { params: PageParams }) {
       </div>
     </div>
   );
+}
+
+// Add type safety for show data
+interface IShow {
+  _id: string;
+  name: string;
+  original_name: string;
+  poster_path: string;
+  overview: string;
+  first_air_date: string;
+  vote_average: number;
 }
