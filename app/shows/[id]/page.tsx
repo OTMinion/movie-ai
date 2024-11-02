@@ -6,21 +6,15 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { Types } from "mongoose";
 
-// Import correct types from Next.js
-// import type { PageProps } from "next/types";
+// Correct type definitions for Next.js 14
+type SearchParams = Record<string, string | string[] | undefined>;
 
-// Define the dynamic route params
-interface PageParameters {
-  id: string;
+interface PageProps {
+  params: { id: string };
+  searchParams: SearchParams;
 }
 
-// Define proper Next.js page props type
-type Props = {
-  params: PageParameters;
-  searchParams: Record<string, string | string[] | undefined>;
-};
-
-// Define the base document structure from MongoDB
+// MongoDB document type
 interface MongoBaseDocument {
   _id: Types.ObjectId;
   id: number;
@@ -49,31 +43,35 @@ interface IShow {
   vote_average: number;
 }
 
-// Interface for similar shows with similarity score
+// Similar show interface with similarity score
 interface ISimilarShow extends IShow {
   similarity: number;
 }
 
 async function getShow(id: string): Promise<IShow> {
-  const show = await PostModel.findById(id).lean();
+  try {
+    const show = await PostModel.findById(id).lean();
 
-  if (!show) notFound();
+    if (!show) notFound();
 
-  // Safely cast the document and convert it to IShow format
-  const showDoc = show as unknown as MongoBaseDocument;
+    const showDoc = show as unknown as MongoBaseDocument;
 
-  return {
-    _id: showDoc._id.toString(),
-    name: showDoc.name,
-    original_name: showDoc.original_name,
-    poster_path: showDoc.poster_path,
-    overview: showDoc.overview,
-    first_air_date: showDoc.first_air_date,
-    vote_average: showDoc.vote_average,
-  };
+    return {
+      _id: showDoc._id.toString(),
+      name: showDoc.name,
+      original_name: showDoc.original_name,
+      poster_path: showDoc.poster_path,
+      overview: showDoc.overview,
+      first_air_date: showDoc.first_air_date,
+      vote_average: showDoc.vote_average,
+    };
+  } catch (error) {
+    console.error("Error fetching show:", error);
+    notFound();
+  }
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const show = await getShow(params.id);
 
   return {
@@ -82,11 +80,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-// Add proper Next.js page type annotation
-const Page = async ({ params, searchParams }: Props) => {
+export default async function ShowPage({ params, searchParams }: PageProps) {
   try {
     const show = await getShow(params.id);
-    const { data: similarPosts, error } = await getSemanticallySimilarPosts(
+    const { data: similarPosts = [], error } = await getSemanticallySimilarPosts(
       show.overview,
       params.id
     );
@@ -168,9 +165,11 @@ const Page = async ({ params, searchParams }: Props) => {
       </div>
     );
   } catch (error) {
-    console.error("Error in Page component:", error);
-    return <div>Error loading show details</div>;
+    console.error("Error in ShowPage:", error);
+    return (
+      <div className="container mx-auto p-6">
+        <p className="text-red-500">Error loading show details</p>
+      </div>
+    );
   }
-};
-
-export default Page;
+}
