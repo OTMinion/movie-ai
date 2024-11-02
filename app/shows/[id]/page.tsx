@@ -3,11 +3,15 @@ import PostModel from "@/models/postModel";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-interface ShowDetailsProps {
-  params: { id: string };
+// Update the props type to match Next.js requirements
+interface PageProps {
+  params: {
+    id: string;
+  };
+  searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export default async function ShowDetails({ params }: ShowDetailsProps) {
+export default async function ShowDetails({ params, searchParams }: PageProps) {
   const show = await PostModel.findById(params.id).lean();
 
   if (!show) {
@@ -90,4 +94,13 @@ export default async function ShowDetails({ params }: ShowDetailsProps) {
       </div>
     </div>
   );
+}
+
+// Add loading and error states
+export function loading() {
+  return <div>Loading...</div>;
+}
+
+export function error({ error }: { error: Error }) {
+  return <div>Error: {error.message}</div>;
 }
