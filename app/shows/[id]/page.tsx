@@ -3,7 +3,6 @@ import PostModel from "@/models/postModel";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-// Update the props type to match Next.js requirements
 interface PageProps {
   params: {
     id: string;
@@ -94,13 +93,4 @@ export default async function ShowDetails({ params, searchParams }: PageProps) {
       </div>
     </div>
   );
-}
-
-// Add loading and error states
-export function loading() {
-  return <div>Loading...</div>;
-}
-
-export function error({ error }: { error: Error }) {
-  return <div>Error: {error.message}</div>;
 }
