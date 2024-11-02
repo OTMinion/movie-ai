@@ -1,18 +1,10 @@
-// app/shows/[id]/page.tsx
 import { getSemanticallySimilarPosts } from "@/actions/semanticSeachAction";
 import PostModel from "@/models/postModel";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 
-// Use Next.js generated types
-type Props = {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
-
-// Add metadata generation
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const show = await PostModel.findById(params.id).lean();
 
   if (!show) {
@@ -27,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ShowDetails({ params }: Props) {
+export default async function ShowDetails({ params }: { params: { id: string } }) {
   const show = await PostModel.findById(params.id).lean();
 
   if (!show) {
