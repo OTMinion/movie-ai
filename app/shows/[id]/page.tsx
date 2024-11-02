@@ -6,13 +6,8 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { Types } from "mongoose";
 
-// Correct type definitions for Next.js 14
-type SearchParams = Record<string, string | string[] | undefined>;
-
-interface PageProps {
-  params: { id: string };
-  searchParams: SearchParams;
-}
+// Import the correct types from Next.js
+import type { ResolvingMetadata } from "next";
 
 // MongoDB document type
 interface MongoBaseDocument {
@@ -71,7 +66,10 @@ async function getShow(id: string): Promise<IShow> {
   }
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata(
+  { params }: { params: { id: string } },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
   const show = await getShow(params.id);
 
   return {
@@ -80,7 +78,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function ShowPage({ params, searchParams }: PageProps) {
+interface PageProps {
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}
+
+async function ShowPage({ params, searchParams }: PageProps) {
   try {
     const show = await getShow(params.id);
     const { data: similarPosts = [], error } = await getSemanticallySimilarPosts(
@@ -173,3 +176,5 @@ export default async function ShowPage({ params, searchParams }: PageProps) {
     );
   }
 }
+
+export default ShowPage;
