@@ -5,7 +5,6 @@ import connectDB from "@/config/database";
 import { generateEmbedding } from "@/utils/embedding";
 import mongoose from "mongoose";
 
-// Interface for base show data
 export interface IShow {
   _id: string;
   name: string;
@@ -16,15 +15,22 @@ export interface IShow {
   vote_average: number;
 }
 
-// Interface for similar shows with similarity score
 export interface ISimilarShow extends IShow {
   similarity: number;
 }
 
-// Type for the response
 export interface SearchResponse {
   data?: ISimilarShow[];
   error?: any;
+}
+
+// Sanitize text to prevent XSS and invalid HTML
+function sanitizeText(text: string): string {
+  return String(text || "")
+    .replace(/[<>]/g, "") // Remove potential HTML tags
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 export async function getSemanticallySimilarPosts(
@@ -53,10 +59,7 @@ export async function getSemanticallySimilarPosts(
       {
         $set: {
           similarity: {
-            $multiply: [
-              { $meta: "vectorSearchScore" },
-              100, // Convert to percentage
-            ],
+            $multiply: [{ $meta: "vectorSearchScore" }, 100],
           },
         },
       },
@@ -73,16 +76,16 @@ export async function getSemanticallySimilarPosts(
       },
     ]);
 
-    // Transform the MongoDB documents to ensure proper typing
+    // Transform and sanitize the data
     const typedSimilarPosts: ISimilarShow[] = similarPosts.map((post) => ({
       _id: post._id.toString(),
-      name: post.name,
-      original_name: post.original_name,
-      poster_path: post.poster_path,
-      overview: post.overview,
-      first_air_date: post.first_air_date,
-      vote_average: post.vote_average,
-      similarity: post.similarity,
+      name: sanitizeText(post.name),
+      original_name: sanitizeText(post.original_name),
+      poster_path: String(post.poster_path || ""),
+      overview: sanitizeText(post.overview),
+      first_air_date: String(post.first_air_date || ""),
+      vote_average: Number(post.vote_average || 0),
+      similarity: Number(post.similarity || 0),
     }));
 
     return { data: typedSimilarPosts };
