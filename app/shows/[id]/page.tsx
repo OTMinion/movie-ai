@@ -1,106 +1,135 @@
 // app/shows/[id]/page.tsx
+import type { Metadata } from "next";
 import { getSemanticallySimilarPosts } from "@/actions/semanticSeachAction";
-import PostModel, { IPostLean } from "@/models/postModel";
+import PostModel from "@/models/postModel";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { Metadata } from "next";
 import Image from "next/image";
+import { notFound } from "next/navigation";
+import connectDB from "@/config/database";
 
-interface PageProps {
-  params: { id: string };
-}
-
-// Custom error class for better error handling
-class ShowError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ShowError";
-  }
-}
-
-async function getShow(id: string): Promise<IPostLean> {
+async function getShow(id: string) {
   try {
-    const show = await PostModel.findById(id).lean();
-
-    if (!show) {
-      throw new ShowError("Show not found");
-    }
-
-    return {
-      _id: show._id.toString(),
-      adult: Boolean(show.adult),
-      backdrop_path: String(show.backdrop_path || ""),
-      genre_ids: Array.isArray(show.genre_ids) ? show.genre_ids : [],
-      id: Number(show.id || 0),
-      origin_country: Array.isArray(show.origin_country) ? show.origin_country : [],
-      original_language: String(show.original_language || ""),
-      original_name: String(show.original_name || ""),
-      overview: String(show.overview || ""),
-      popularity: Number(show.popularity || 0),
-      poster_path: String(show.poster_path || ""),
-      first_air_date: String(show.first_air_date || ""),
-      name: String(show.name || ""),
-      vote_average: Number(show.vote_average || 0),
-      vote_count: Number(show.vote_count || 0),
-    };
+    await connectDB();
+    const show = await PostModel.findById(id).lean().exec();
+    if (!show) return null;
+    return show;
   } catch (error) {
-    if (error instanceof Error) {
-      throw new ShowError(error.message);
-    }
-    throw new ShowError("Failed to fetch show");
+    console.error("Error fetching show:", error);
+    return null;
   }
 }
+
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: { [key: string]: string | string[] | undefined };
+};
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  try {
-    const show = await getShow(params.id);
-    return {
-      title: show.name,
-      description: show.overview,
-    };
-  } catch (error) {
-    return {
-      title: "Show Details",
-      description: "Show information",
-    };
-  }
-}
+  const { id } = await params;
+  const show = await getShow(id);
 
-// Safe stringify function for debugging
-function safeStringify(obj: unknown): string {
-  try {
-    return JSON.stringify(obj, null, 2);
-  } catch (error) {
-    return "[Unable to stringify object]";
+  if (!show) {
+    return {
+      title: "Show Not Found",
+      description: "The requested show could not be found",
+    };
   }
+
+  return {
+    title: show.name,
+    description: show.overview,
+  };
 }
 
 export default async function ShowPage({ params }: PageProps) {
-  try {
-    if (!params.id) {
-      throw new ShowError("Show ID is required");
-    }
+  const { id } = await params;
+  const show = await getShow(id);
 
-    const show = await getShow(params.id);
-
-    return (
-      <div className="p-6">
-        <div className="mb-4">
-          <pre className="text-xs text-gray-500">{safeStringify({ id: params.id })}</pre>
-        </div>
-        <h1 className="text-2xl font-bold mb-2">{show.name}</h1>
-        <p className="text-gray-600 mb-2">{show.original_name}</p>
-        <p className="text-gray-800">{show.overview}</p>
-      </div>
-    );
-  } catch (error) {
-    console.error("Error in ShowPage:", error);
-
-    if (error instanceof ShowError) {
-      throw error; // Let the error boundary handle ShowErrors
-    }
-
-    // For other errors, provide a generic message
-    throw new ShowError("Failed to load show details");
+  if (!show) {
+    notFound();
   }
+
+  const { data: similarPosts = [], error } = await getSemanticallySimilarPosts(show.overview, id);
+
+  return (
+    <div className="container mx-auto p-6">
+      <div className="grid md:grid-cols-[1fr_2fr] gap-8">
+        {/* Show Details */}
+        <div>
+          <div className="relative w-full aspect-[2/3]">
+            <Image
+              src={`https://image.tmdb.org/t/p/w500${show.poster_path}`}
+              alt={show.name}
+              fill
+              className="rounded-lg object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
+          </div>
+          <h1 className="text-3xl font-bold mt-4">{show.name}</h1>
+          <p className="text-gray-600">{show.original_name}</p>
+          <div className="mt-4">
+            <p>First Air Date: {show.first_air_date}</p>
+            <p>Rating: ⭐ {show.vote_average.toFixed(1)}</p>
+          </div>
+          <p className="mt-4">{show.overview}</p>
+        </div>
+
+        {/* Similar Shows */}
+        <div>
+          <h2 className="text-2xl font-bold mb-6">Similar Shows</h2>
+          {error ? (
+            <p className="text-red-500">Error loading similar shows</p>
+          ) : similarPosts && similarPosts.length > 0 ? (
+            <div className="space-y-6">
+              {similarPosts.map((post) => (
+                <div
+                  key={post._id}
+                  className="border rounded-lg overflow-hidden hover:shadow-lg transition"
+                >
+                  <div className="flex items-start p-4">
+                    <div className="relative w-24 h-36 flex-shrink-0">
+                      <Image
+                        src={`https://image.tmdb.org/t/p/w200${post.poster_path}`}
+                        alt={post.name}
+                        fill
+                        className="rounded object-cover"
+                        sizes="96px"
+                      />
+                    </div>
+                    <div className="flex-1 ml-4">
+                      <div className="flex justify-between items-start">
+                        <Link href={`/shows/${post._id}`}>
+                          <h3 className="font-semibold text-lg hover:text-blue-600">{post.name}</h3>
+                        </Link>
+                        <span
+                          className={`px-2 py-1 rounded text-sm ${
+                            post.similarity > 80
+                              ? "bg-green-100 text-green-800"
+                              : post.similarity > 60
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {post.similarity.toFixed(1)}% Match
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">{post.original_name}</p>
+                      <div className="flex items-center text-sm text-gray-500 mt-1">
+                        <span>{new Date(post.first_air_date).getFullYear()}</span>
+                        <span className="mx-2">•</span>
+                        <span>⭐ {post.vote_average.toFixed(1)}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">{post.overview}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>No similar shows found</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
