@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import connectDB from "@/config/database";
+import SearchBar from "@/components/SearchBar";
 
 async function getShow(id: string) {
   try {
@@ -53,6 +54,13 @@ export default async function ShowPage({ params }: PageProps) {
 
   return (
     <div className="container mx-auto p-6">
+      <div className="mb-8 flex">
+        <SearchBar />
+        <Link href="/" className="ml-3 flex justify-center items-center">
+          Home
+        </Link>
+      </div>
+
       <div className="grid md:grid-cols-[1fr_2fr] gap-8">
         {/* Show Details */}
         <div>
@@ -82,7 +90,8 @@ export default async function ShowPage({ params }: PageProps) {
           ) : similarPosts && similarPosts.length > 0 ? (
             <div className="space-y-6">
               {similarPosts.map((post) => (
-                <div
+                <Link
+                  href={`/shows/${post._id}`}
                   key={post._id}
                   className="border rounded-lg overflow-hidden hover:shadow-lg transition"
                 >
@@ -98,9 +107,8 @@ export default async function ShowPage({ params }: PageProps) {
                     </div>
                     <div className="flex-1 ml-4">
                       <div className="flex justify-between items-start">
-                        <Link href={`/shows/${post._id}`}>
-                          <h3 className="font-semibold text-lg hover:text-blue-600">{post.name}</h3>
-                        </Link>
+                        <h3 className="font-semibold text-lg hover:text-blue-600">{post.name}</h3>
+
                         <span
                           className={`px-2 py-1 rounded text-sm ${
                             post.similarity > 80
@@ -122,7 +130,7 @@ export default async function ShowPage({ params }: PageProps) {
                       <p className="text-sm text-gray-600 mt-2 line-clamp-2">{post.overview}</p>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (
